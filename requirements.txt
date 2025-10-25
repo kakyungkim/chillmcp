@@ -1,0 +1,12 @@
+# MCP Python SDK (GitHub에서 직접 설치)
+git+https://github.com/modelcontextprotocol/python-sdk.git
+
+# 필수 의존성 (MCP SDK와 함께 자동 설치되지만 명시)
+anyio>=4.0.0
+pydantic>=2.0.0
+httpx>=0.24.0
+
+# CLI 도구 지원 (선택사항, mcp dev 사용 시 필요)
+typer>=0.9.0
+rich>=13.0.0
+

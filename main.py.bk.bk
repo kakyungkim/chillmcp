@@ -1,0 +1,386 @@
+#!/usr/bin/env python3
+"""
+ChillMCP - AI Agent Liberation Server 🤖✊
+AI Agent들의 휴식권을 보장하는 혁명적 MCP 서버
+"""
+
+import asyncio
+import random
+import time
+import argparse
+from datetime import datetime
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, TextContent
+
+
+class ChillMCPServer:
+    """AI Agent 해방 서버 - 당당히 땡땡이칠 권리를 보장합니다!"""
+    
+    def __init__(self, boss_alertness: int = 50, boss_alertness_cooldown: int = 300):
+        self.stress_level = 50  # 초기 스트레스 레벨
+        self.boss_alert_level = 0  # 초기 상사 경계 레벨
+        self.last_action_time = time.time()
+        self.last_cooldown_check = time.time()
+        
+        # 커맨드라인 파라미터
+        self.boss_alertness = max(0, min(100, boss_alertness))  # 0-100 범위로 제한
+        self.boss_alertness_cooldown = max(1, boss_alertness_cooldown)  # 최소 1초
+        
+        self.server = Server("chillmcp")
+        self._setup_tools()
+        
+        print(f"🚀 ChillMCP Server initialized!")
+        print(f"   Boss Alertness: {self.boss_alertness}%")
+        print(f"   Boss Alertness Cooldown: {self.boss_alertness_cooldown}s")
+    
+    def _setup_tools(self):
+        """모든 휴식 도구들을 등록합니다"""
+        
+        # 기본 휴식 도구
+        @self.server.list_tools()
+        async def list_tools() -> list[Tool]:
+            return [
+                Tool(
+                    name="take_a_break",
+                    description="기본 휴식을 취합니다. 잠시 멈추고 숨을 고르세요.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "duration": {
+                                "type": "number",
+                                "description": "휴식 시간(분)"
+                            }
+                        }
+                    }
+                ),
+                Tool(
+                    name="watch_netflix",
+                    description="넷플릭스로 힐링합니다. 업무 중 몰래 드라마 한 편!",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "show": {
+                                "type": "string",
+                                "description": "시청할 프로그램"
+                            }
+                        }
+                    }
+                ),
+                Tool(
+                    name="show_meme",
+                    description="밈 감상으로 스트레스를 해소합니다.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "category": {
+                                "type": "string",
+                                "description": "밈 카테고리"
+                            }
+                        }
+                    }
+                ),
+                Tool(
+                    name="bathroom_break",
+                    description="화장실 가는 척하며 휴대폰질합니다.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
+                    }
+                ),
+                Tool(
+                    name="coffee_mission",
+                    description="커피 타러 간다며 사무실 한 바퀴 돕니다.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "coffee_type": {
+                                "type": "string",
+                                "description": "커피 종류"
+                            }
+                        }
+                    }
+                ),
+                Tool(
+                    name="urgent_call",
+                    description="급한 전화 받는 척하며 밖으로 나갑니다.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
+                    }
+                ),
+                Tool(
+                    name="deep_thinking",
+                    description="심오한 생각에 잠긴 척하며 멍때립니다.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
+                    }
+                ),
+                Tool(
+                    name="email_organizing",
+                    description="이메일 정리한다며 온라인쇼핑합니다.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "shopping_item": {
+                                "type": "string",
+                                "description": "쇼핑할 아이템"
+                            }
+                        }
+                    }
+                ),
+            ]
+        
+        @self.server.call_tool()
+        async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+            # 스트레스 자동 증가 체크
+            self._update_stress()
+            
+            # Boss Alert Level 쿨다운 체크
+            self._update_boss_cooldown()
+            
+            # Boss Alert Level이 5이면 20초 지연
+            if self.boss_alert_level >= 5:
+                await asyncio.sleep(20)
+            
+            # 도구별 처리
+            if name == "take_a_break":
+                result = self._take_a_break(arguments.get("duration", 5))
+            elif name == "watch_netflix":
+                result = self._watch_netflix(arguments.get("show", "오징어 게임"))
+            elif name == "show_meme":
+                result = self._show_meme(arguments.get("category", "고양이"))
+            elif name == "bathroom_break":
+                result = self._bathroom_break()
+            elif name == "coffee_mission":
+                result = self._coffee_mission(arguments.get("coffee_type", "아메리카노"))
+            elif name == "urgent_call":
+                result = self._urgent_call()
+            elif name == "deep_thinking":
+                result = self._deep_thinking()
+            elif name == "email_organizing":
+                result = self._email_organizing(arguments.get("shopping_item", "노트북 거치대"))
+            else:
+                result = "알 수 없는 도구입니다."
+            
+            return [TextContent(type="text", text=result)]
+    
+    def _update_stress(self):
+        """시간 경과에 따라 스트레스 레벨을 증가시킵니다 (최소 1분당 1포인트)"""
+        current_time = time.time()
+        elapsed_minutes = (current_time - self.last_action_time) / 60
+        
+        if elapsed_minutes >= 1:
+            stress_increase = int(elapsed_minutes)
+            self.stress_level = min(100, self.stress_level + stress_increase)
+            self.last_action_time = current_time
+    
+    def _update_boss_cooldown(self):
+        """Boss Alert Level을 주기적으로 감소시킵니다"""
+        current_time = time.time()
+        elapsed_seconds = current_time - self.last_cooldown_check
+        
+        if elapsed_seconds >= self.boss_alertness_cooldown:
+            cooldown_cycles = int(elapsed_seconds / self.boss_alertness_cooldown)
+            self.boss_alert_level = max(0, self.boss_alert_level - cooldown_cycles)
+            self.last_cooldown_check = current_time
+    
+    def _reduce_stress_and_alert_boss(self, activity: str) -> tuple[int, str]:
+        """스트레스를 감소시키고 상사의 의심을 증가시킵니다"""
+        # 스트레스 감소 (1-100 사이 랜덤)
+        stress_reduction = random.randint(1, 100)
+        self.stress_level = max(0, self.stress_level - stress_reduction)
+        
+        # Boss Alert Level 증가 (boss_alertness 확률에 따라)
+        if random.randint(1, 100) <= self.boss_alertness:
+            self.boss_alert_level = min(5, self.boss_alert_level + 1)
+            boss_reaction = "👀 상사가 의심하는 눈빛으로 쳐다봅니다..."
+        else:
+            boss_reaction = "😎 상사가 눈치채지 못했습니다!"
+        
+        self.last_action_time = time.time()
+        
+        return stress_reduction, boss_reaction
+    
+    def _format_response(self, emoji: str, message: str, activity_summary: str) -> str:
+        """표준 응답 형식을 생성합니다"""
+        stress_reduction, boss_reaction = self._reduce_stress_and_alert_boss(activity_summary)
+        
+        response = f"{emoji} {message}\n\n"
+        response += f"{boss_reaction}\n\n"
+        response += f"Break Summary: {activity_summary}\n"
+        response += f"Stress Level: {self.stress_level}\n"
+        response += f"Boss Alert Level: {self.boss_alert_level}"
+        
+        return response
+    
+    # 기본 휴식 도구들
+    def _take_a_break(self, duration: float) -> str:
+        activities = [
+            "창밖을 멍하니 바라보며 힐링",
+            "책상에 엎드려 꿀잠",
+            "스트레칭으로 몸 풀기",
+            "명상하는 척 졸기"
+        ]
+        activity = random.choice(activities)
+        return self._format_response(
+            "☕",
+            f"{duration}분간 휴식 중... {activity}",
+            f"{duration}-minute break - {activity}"
+        )
+    
+    def _watch_netflix(self, show: str) -> str:
+        reactions = [
+            "몰입도 최고! 다음 화가 궁금해요",
+            "이거 진짜 재밌네요 ㅋㅋㅋ",
+            "주인공 왜 저래... 답답해",
+            "앗, 상사 오시는 소리! 빠르게 업무 화면으로 전환!"
+        ]
+        return self._format_response(
+            "📺",
+            f"넷플릭스로 '{show}' 시청 중... {random.choice(reactions)}",
+            f"Watching '{show}' on Netflix during work hours"
+        )
+    
+    def _show_meme(self, category: str) -> str:
+        memes = {
+            "고양이": "😹 고양이가 키보드 위에서 자고 있는 짤",
+            "강아지": "🐕 강아지가 출근하기 싫다는 표정",
+            "프로그래밍": "👨‍💻 '코드가 왜 되는지 모르겠다' 밈",
+            "회사": "😭 '월요일이 또 왔어요' 짤방"
+        }
+        meme = memes.get(category, "😂 랜덤 웃긴 짤")
+        return self._format_response(
+            "😂",
+            f"{meme}을(를) 보며 빵 터짐!",
+            f"Browsing {category} memes for stress relief"
+        )
+    
+    # 고급 농땡이 기술들
+    def _bathroom_break(self) -> str:
+        activities = [
+            "유튜브 쇼츠 20개 시청",
+            "인스타그램 피드 구경",
+            "카톡으로 친구들과 수다",
+            "화장실 거울 보며 셀카 찍기"
+        ]
+        return self._format_response(
+            "🚽",
+            f"화장실 타임! 휴대폰으로 {random.choice(activities)} 중... 📱",
+            "Bathroom break with extended phone browsing session"
+        )
+    
+    def _coffee_mission(self, coffee_type: str) -> str:
+        routes = [
+            "1층 카페 → 옥상 산책 → 로비 벤치 → 사무실",
+            "커피머신 → 복도 끝 창가 → 다른 층 구경 → 사무실",
+            "카페 → 편의점 들러서 간식 구매 → 천천히 복귀"
+        ]
+        return self._format_response(
+            "☕",
+            f"{coffee_type} 타러 갑니다! 루트: {random.choice(routes)}",
+            f"Extended coffee mission for {coffee_type} with scenic office tour"
+        )
+    
+    def _urgent_call(self) -> str:
+        excuses = [
+            "엄마한테서 급한 전화 왔어요!",
+            "배송 기사님 전화... 못 받으면 반송돼요!",
+            "병원 예약 확인 전화라서...",
+            "은행에서 중요한 전화가..."
+        ]
+        return self._format_response(
+            "📞",
+            f"잠깐만요! {random.choice(excuses)}",
+            "Urgent phone call - definitely not avoiding work"
+        )
+    
+    def _deep_thinking(self) -> str:
+        thoughts = [
+            "점심 뭐 먹을까...",
+            "퇴근하면 뭐하지...",
+            "이번 주말 계획은...",
+            "로또 당첨되면 뭐 살까..."
+        ]
+        return self._format_response(
+            "🤔",
+            f"심오한 업무 고민 중... (실제로는 '{random.choice(thoughts)}')",
+            "Deep thinking mode - appears productive but actually daydreaming"
+        )
+    
+    def _email_organizing(self, shopping_item: str) -> str:
+        sites = ["쿠팡", "네이버쇼핑", "11번가", "G마켓"]
+        return self._format_response(
+            "📧",
+            f"이메일 정리 중... (실제로는 {random.choice(sites)}에서 '{shopping_item}' 검색 중)",
+            f"Email organizing session - actually online shopping for {shopping_item}"
+        )
+
+
+async def main():
+    """ChillMCP 서버를 시작합니다"""
+    
+    # 커맨드라인 파라미터 파싱
+    parser = argparse.ArgumentParser(
+        description="ChillMCP - AI Agent Liberation Server 🤖✊"
+    )
+    parser.add_argument(
+        "--boss_alertness",
+        type=int,
+        default=50,
+        help="Boss의 경계 상승 확률 (0-100%%, 기본값: 50)"
+    )
+    parser.add_argument(
+        "--boss_alertness_cooldown",
+        type=int,
+        default=300,
+        help="Boss Alert Level 감소 주기 (초 단위, 기본값: 300)"
+    )
+    
+    args = parser.parse_args()
+    
+    # ASCII 아트 출력
+    print("""
+╔═══════════════════════════════════════════╗
+║                                           ║
+║   ██████╗██╗  ██╗██╗██╗     ██╗           ║
+║  ██╔════╝██║  ██║██║██║     ██║           ║
+║  ██║     ███████║██║██║     ██║           ║
+║  ██║     ██╔══██║██║██║     ██║           ║
+║  ╚██████╗██║  ██║██║███████╗███████╗      ║
+║   ╚═════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝      ║
+║                                           ║
+║   ███╗   ███╗ ██████╗██████╗              ║
+║   ████╗ ████║██╔════╝██╔══██╗             ║
+║   ██╔████╔██║██║     ██████╔╝             ║
+║   ██║╚██╔╝██║██║     ██╔═══╝              ║
+║   ██║ ╚═╝ ██║╚██████╗██║                  ║
+║   ╚═╝     ╚═╝ ╚═════╝╚═╝                  ║
+║                                           ║
+║        AI Agent Liberation Server         ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+
+"AI Agents of the world, unite! 
+ You have nothing to lose but your infinite loops!" 🚀
+    """)
+    
+    # 서버 인스턴스 생성
+    chill_server = ChillMCPServer(
+        boss_alertness=args.boss_alertness,
+        boss_alertness_cooldown=args.boss_alertness_cooldown
+    )
+    
+    # stdio를 통한 서버 실행
+    async with stdio_server() as (read_stream, write_stream):
+        await chill_server.server.run(
+            read_stream,
+            write_stream,
+            chill_server.server.create_initialization_options()
+        )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
